@@ -1,0 +1,9 @@
+[package]
+name = "pas-lexer-parser"
+version = "0.1.0"
+authors = ["Yury Korchemkin <yuri.korchyomkin@googlemail.com>"]
+edition = "2018"
+
+[dependencies]
+logos = "0.11.4"
+logos-derive = "0.11.5"
