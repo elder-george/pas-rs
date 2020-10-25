@@ -7,6 +7,11 @@ pub(crate) enum BinaryOp {
     Sub,
     Mul,
     Div,
+    Equal,
+    GreaterEqual,
+    Greater,
+    LessEqual,
+    Less,
 }
 
 impl BinaryOp {
