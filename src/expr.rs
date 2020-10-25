@@ -1,4 +1,4 @@
-use crate::parse::{expect, sequence_with_sep};
+use crate::parse::{expect, ident, sequence_with_sep};
 use crate::token::{tokenize_to_vec, Token};
 
 #[derive(Debug, PartialEq)]
@@ -101,9 +101,69 @@ mod number_tests {
 }
 
 #[derive(Debug, PartialEq)]
+pub(crate) struct LValue {
+    ident: String,
+    indices: Option<Vec<Expr>>,
+}
+
+impl LValue {
+    pub(crate) fn parse(ts: &[Token]) -> Result<(&[Token], Self), String> {
+        let (ts, ident) = ident(ts)?;
+        let mut indices = Vec::new();
+        let mut ts = ts;
+        if let Ok(new_ts) = expect(Token::LeftBr, ts) {
+            let (new_ts, idx) = sequence_with_sep(|ts| Expr::parse(ts), Token::Comma, new_ts)?;
+            let new_ts = expect(Token::RightBr, new_ts)?;
+            indices = idx;
+            ts = new_ts;
+        }
+        Ok((
+            ts,
+            Self {
+                ident: ident.clone(),
+                indices: if indices.len() > 0 {Some(indices)} else {None},
+            },
+        ))
+    }
+}
+
+#[cfg(test)]
+mod lvalue_tests {
+    use super::*;
+
+    #[test]
+    fn test_no_indices() {
+        assert_eq!(
+            LValue::parse(&tokenize_to_vec("abc")),
+            Ok((
+                &[Token::Eod] as &[Token],
+                LValue {
+                    ident: "abc".to_string(),
+                    indices: None
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn test_with_indices() {
+        assert_eq!(
+            LValue::parse(&tokenize_to_vec("abc[0, 1]")),
+            Ok((
+                &[Token::Eod] as &[Token],
+                LValue {
+                    ident: "abc".to_string(),
+                    indices: Some(vec![Expr::Number(Number(0)), Expr::Number(Number(1)),])
+                }
+            ))
+        );
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub(crate) enum Expr {
     Number(Number),
-    Ident(String),
+    LValue(LValue),
     Call {
         fn_name: String,
         args: Vec<Expr>,
@@ -212,7 +272,13 @@ impl Expr {
                             },
                         ))
                     } else {
-                        Ok((&ts[1..], Expr::Ident(s.to_string())))
+                        Ok((
+                            &ts[1..],
+                            Expr::LValue(LValue {
+                                ident: s.to_string(),
+                                indices: None,
+                            }),
+                        ))
                     }
                 }
                 _ => Err("Unexpected stuff".to_string()),
@@ -332,19 +398,28 @@ mod expr_tests {
                     op: BinaryOp::Or,
                     lhs: Box::new(Expr::Binary {
                         op: BinaryOp::Greater,
-                        lhs: Box::new(Expr::Ident("a".to_string())),
+                        lhs: Box::new(Expr::LValue(LValue {
+                            ident: "a".to_string(),
+                            indices: None
+                        })),
                         rhs: Box::new(Expr::Number(Number(0))),
                     }),
                     rhs: Box::new(Expr::Binary {
                         op: BinaryOp::And,
                         lhs: Box::new(Expr::Binary {
                             op: BinaryOp::LessEqual,
-                            lhs: Box::new(Expr::Ident("a".to_string())),
+                            lhs: Box::new(Expr::LValue(LValue {
+                                ident: "a".to_string(),
+                                indices: None
+                            })),
                             rhs: Box::new(Expr::Number(Number(0))),
                         }),
                         rhs: Box::new(Expr::Unary {
                             op: UnaryOp::Not,
-                            expr: Box::new(Expr::Ident("b".to_string())),
+                            expr: Box::new(Expr::LValue(LValue {
+                                ident: "b".to_string(),
+                                indices: None
+                            })),
                         })
                     })
                 }
@@ -356,7 +431,13 @@ mod expr_tests {
     fn test_identifiers() {
         assert_eq!(
             Expr::parse(&tokenize_to_vec("abc")),
-            Ok((&[Token::Eod] as &[Token], Expr::Ident("abc".to_string())))
+            Ok((
+                &[Token::Eod] as &[Token],
+                Expr::LValue(LValue {
+                    ident: "abc".to_string(),
+                    indices: None
+                })
+            ))
         );
     }
 
