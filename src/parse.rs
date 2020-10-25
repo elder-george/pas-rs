@@ -1,4 +1,6 @@
-pub(crate) fn expect<Token: std::fmt::Debug + PartialEq>(
+use crate::token::Token;
+
+pub(crate) fn expect(
     tk: Token,
     tokens: &[Token],
 ) -> Result<&[Token], String> {
@@ -9,7 +11,7 @@ pub(crate) fn expect<Token: std::fmt::Debug + PartialEq>(
     }
 }
 
-pub(crate) fn sequence_with_sep<'a, 'b, Token: Clone + std::fmt::Debug + PartialEq, T>(
+pub(crate) fn sequence_with_sep<'a, 'b, T>(
     parser: impl Fn(&'b [Token]) -> Result<(&'b [Token], T), String>,
     sep: Token,
     mut ts: &'b [Token],
@@ -26,4 +28,12 @@ pub(crate) fn sequence_with_sep<'a, 'b, Token: Clone + std::fmt::Debug + Partial
         }
     }
     Ok((ts, items))
+}
+
+pub(crate) fn ident(ts: &[Token]) -> Result<(&[Token], String), String> {
+    if let Token::Ident(ident) = &ts[0] {
+        Ok((&ts[1..], ident.clone()))
+    } else {
+        Err(format!("Expected identifier, got {:?}", ts[0]))
+    }
 }
