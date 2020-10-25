@@ -76,31 +76,6 @@ mod test_op {
 }
 
 #[derive(Debug, PartialEq)]
-pub(crate) struct Number(pub(crate) i64);
-
-impl Number {
-    pub(crate) fn parse(ts: &[Token]) -> Result<(&[Token], Self), String> {
-        match ts[0] {
-            Token::Number(n) => Ok((&ts[1..], Self(n))),
-            _ => Err(format!("expected number, got {:?}", ts[0])),
-        }
-    }
-}
-
-#[cfg(test)]
-mod number_tests {
-    use super::*;
-
-    #[test]
-    fn test_parse_number() {
-        assert_eq!(
-            Number::parse(&[Token::Number(42)]),
-            Ok((&[] as &[Token], Number(42)))
-        );
-    }
-}
-
-#[derive(Debug, PartialEq)]
 pub(crate) struct LValue {
     ident: String,
     indices: Option<Vec<Expr>>,
@@ -121,7 +96,11 @@ impl LValue {
             ts,
             Self {
                 ident: ident.clone(),
-                indices: if indices.len() > 0 {Some(indices)} else {None},
+                indices: if indices.len() > 0 {
+                    Some(indices)
+                } else {
+                    None
+                },
             },
         ))
     }
@@ -153,7 +132,7 @@ mod lvalue_tests {
                 &[Token::Eod] as &[Token],
                 LValue {
                     ident: "abc".to_string(),
-                    indices: Some(vec![Expr::Number(Number(0)), Expr::Number(Number(1)),])
+                    indices: Some(vec![Expr::Number(0), Expr::Number(1),])
                 }
             ))
         );
@@ -162,7 +141,7 @@ mod lvalue_tests {
 
 #[derive(Debug, PartialEq)]
 pub(crate) enum Expr {
-    Number(Number),
+    Number(i64),
     LValue(LValue),
     Call {
         fn_name: String,
@@ -250,10 +229,7 @@ impl Expr {
             ))
         } else {
             match &ts[0] {
-                Token::Number(_) => {
-                    let (ts, num) = Number::parse(ts)?;
-                    Ok((ts, Self::Number(num)))
-                }
+                Token::Number(num) => Ok((&ts[1..], Self::Number(*num))),
                 Token::LeftPar => {
                     let ts = expect(Token::LeftPar, ts)?;
                     let (ts, expr) = Self::parse(ts)?;
@@ -299,7 +275,7 @@ mod expr_tests {
     fn test_parse_number() {
         assert_eq!(
             Expr::parse(&tokenize_to_vec("42")),
-            Ok((&[Token::Eod] as &[Token], Expr::Number(Number(42))))
+            Ok((&[Token::Eod] as &[Token], Expr::Number(42)))
         );
     }
     #[test]
@@ -310,8 +286,8 @@ mod expr_tests {
                 &[Token::Eod] as &[Token],
                 Expr::Binary {
                     op: BinaryOp::Add,
-                    lhs: Box::new(Expr::Number(Number(42))),
-                    rhs: Box::new(Expr::Number(Number(42)))
+                    lhs: Box::new(Expr::Number(42)),
+                    rhs: Box::new(Expr::Number(42))
                 }
             ))
         );
@@ -325,8 +301,8 @@ mod expr_tests {
                 &[Token::Eod] as &[Token],
                 Expr::Binary {
                     op: BinaryOp::Mul,
-                    lhs: Box::new(Expr::Number(Number(42))),
-                    rhs: Box::new(Expr::Number(Number(42)))
+                    lhs: Box::new(Expr::Number(42)),
+                    rhs: Box::new(Expr::Number(42))
                 }
             ))
         );
@@ -340,11 +316,11 @@ mod expr_tests {
                 &[Token::Eod] as &[Token],
                 Expr::Binary {
                     op: BinaryOp::Sub,
-                    lhs: Box::new(Expr::Number(Number(42))),
+                    lhs: Box::new(Expr::Number(42)),
                     rhs: Box::new(Expr::Binary {
                         op: BinaryOp::Div,
-                        lhs: Box::new(Expr::Number(Number(42))),
-                        rhs: Box::new(Expr::Number(Number(42)))
+                        lhs: Box::new(Expr::Number(42)),
+                        rhs: Box::new(Expr::Number(42))
                     })
                 }
             ))
@@ -361,10 +337,10 @@ mod expr_tests {
                     op: BinaryOp::Div,
                     lhs: Box::new(Expr::Binary {
                         op: BinaryOp::Sub,
-                        lhs: Box::new(Expr::Number(Number(42))),
-                        rhs: Box::new(Expr::Number(Number(42)))
+                        lhs: Box::new(Expr::Number(42)),
+                        rhs: Box::new(Expr::Number(42))
                     }),
-                    rhs: Box::new(Expr::Number(Number(42))),
+                    rhs: Box::new(Expr::Number(42)),
                 }
             ))
         );
@@ -377,10 +353,10 @@ mod expr_tests {
                 &[Token::Eod] as &[Token],
                 Expr::Binary {
                     op: BinaryOp::Add,
-                    lhs: Box::new(Expr::Number(Number(42))),
+                    lhs: Box::new(Expr::Number(42)),
                     rhs: Box::new(Expr::Unary {
                         op: UnaryOp::Neg,
-                        expr: Box::new(Expr::Number(Number(42))),
+                        expr: Box::new(Expr::Number(42)),
                     })
                 },
             ))
@@ -402,7 +378,7 @@ mod expr_tests {
                             ident: "a".to_string(),
                             indices: None
                         })),
-                        rhs: Box::new(Expr::Number(Number(0))),
+                        rhs: Box::new(Expr::Number(0)),
                     }),
                     rhs: Box::new(Expr::Binary {
                         op: BinaryOp::And,
@@ -412,7 +388,7 @@ mod expr_tests {
                                 ident: "a".to_string(),
                                 indices: None
                             })),
-                            rhs: Box::new(Expr::Number(Number(0))),
+                            rhs: Box::new(Expr::Number(0)),
                         }),
                         rhs: Box::new(Expr::Unary {
                             op: UnaryOp::Not,
@@ -464,9 +440,9 @@ mod expr_tests {
                 Expr::Call {
                     fn_name: "abc".to_string(),
                     args: vec![
-                        Expr::Number(Number(1)),
-                        Expr::Number(Number(2)),
-                        Expr::Number(Number(3))
+                        Expr::Number(1),
+                        Expr::Number(2),
+                        Expr::Number(3)
                     ]
                 }
             ))
