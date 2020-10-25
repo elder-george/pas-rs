@@ -48,6 +48,10 @@ pub(crate) enum Token {
     LeftPar,
     #[token(")")]
     RightPar,
+    #[token("[")]
+    LeftBr,
+    #[token("]")]
+    RightBr,
     #[token(",")]
     Comma,
     #[token(";")]
