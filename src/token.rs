@@ -28,6 +28,8 @@ pub(crate) enum Token {
     Assign,
     #[token("=")]
     Equal,
+    #[token("<>")]
+    NotEqual,
     #[token(">")]
     Greater,
     #[token(">=")]
@@ -36,6 +38,12 @@ pub(crate) enum Token {
     Less,
     #[token("<=")]
     LessEqual,
+    #[token("and")]
+    And,
+    #[token("or")]
+    Or,
+    #[token("not")]
+    Not,            
     #[token("(")]
     LeftPar,
     #[token(")")]

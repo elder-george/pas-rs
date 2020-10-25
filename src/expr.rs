@@ -8,10 +8,13 @@ pub(crate) enum BinaryOp {
     Mul,
     Div,
     Equal,
+    NotEqual,
     GreaterEqual,
     Greater,
     LessEqual,
     Less,
+    And,
+    Or,
 }
 
 impl BinaryOp {
@@ -22,10 +25,13 @@ impl BinaryOp {
             Token::Star => Ok(Self::Mul),
             Token::Slash => Ok(Self::Div),
             Token::Equal => Ok(Self::Equal),
+            Token::NotEqual => Ok(Self::NotEqual),
             Token::Greater => Ok(Self::Greater),
             Token::GreaterEqual => Ok(Self::GreaterEqual),
             Token::Less => Ok(Self::Less),
             Token::LessEqual => Ok(Self::LessEqual),
+            Token::And => Ok(Self::And),
+            Token::Or => Ok(Self::Or),
             _ => Err(format!("expected a binary operator but got {:?}", ts[0])),
         }?;
         Ok((&ts[1..], op))
@@ -35,12 +41,14 @@ impl BinaryOp {
 #[derive(Debug, PartialEq)]
 pub(crate) enum UnaryOp {
     Neg,
+    Not,
 }
 
 impl UnaryOp {
     pub(crate) fn parse(ts: &[Token]) -> Result<(&[Token], Self), String> {
         let op = match ts[0] {
             Token::Minus => Ok(Self::Neg),
+            Token::Not => Ok(Self::Not),
             _ => Err(format!("expected a unary operator but got {:?}", ts[0])),
         }?;
         Ok((&ts[1..], op))
@@ -112,9 +120,37 @@ pub(crate) enum Expr {
 }
 
 impl Expr {
+    // Pascal operators precedence table: https://www.freepascal.org/docs-html/ref/refch12.html
+    // so:
+    // Expr -> Sum (RelOp Sum)*.
+    // Sum -> Term (SumOp Term)*.
+    // Term -> Factor (MulOp Factor)*.
+    // Factor -> UnaryOp? Number | Ident | Call | '(' Expr')'.
+    // (for comparison, C has 15 precedence levels)
     pub(crate) fn parse(ts: &[Token]) -> Result<(&[Token], Self), String> {
+        let (mut ts, mut expr) = Self::sum(ts)?;
+        while ts[0] == Token::Equal
+            || ts[0] == Token::Greater
+            || ts[0] == Token::GreaterEqual
+            || ts[0] == Token::Less
+            || ts[0] == Token::LessEqual
+            || ts[0] == Token::NotEqual
+        {
+            let (new_ts, op) = BinaryOp::parse(ts)?;
+            let (new_ts, rhs) = Self::sum(new_ts)?;
+            expr = Self::Binary {
+                op,
+                lhs: Box::new(expr),
+                rhs: Box::new(rhs),
+            };
+            ts = new_ts;
+        }
+        Ok((ts, expr))
+    }
+
+    fn sum(ts: &[Token]) -> Result<(&[Token], Self), String> {
         let (mut ts, mut expr) = Self::term(ts)?;
-        while ts[0] == Token::Plus || ts[0] == Token::Minus {
+        while ts[0] == Token::Plus || ts[0] == Token::Minus || ts[0] == Token::Or {
             let (new_ts, op) = BinaryOp::parse(ts)?;
             let (new_ts, rhs) = Self::term(new_ts)?;
             expr = Self::Binary {
@@ -129,7 +165,7 @@ impl Expr {
 
     fn term(ts: &[Token]) -> Result<(&[Token], Self), String> {
         let (mut ts, mut expr) = Self::factor(ts)?;
-        while ts[0] == Token::Star || ts[0] == Token::Slash {
+        while ts[0] == Token::Star || ts[0] == Token::Slash || ts[0] == Token::And {
             let (new_ts, op) = BinaryOp::parse(ts)?;
             let (new_ts, rhs) = Self::factor(new_ts)?;
             expr = Self::Binary {
@@ -281,6 +317,37 @@ mod expr_tests {
                         expr: Box::new(Expr::Number(Number(42))),
                     })
                 },
+            ))
+        );
+    }
+
+    #[test]
+    fn logical_operators() {
+        assert_eq!(
+            // Relational operators have the lowest precedence, thus the parentheses
+            Expr::parse(&tokenize_to_vec("(a > 0) or (a <= 0) and not b")),
+            Ok((
+                &[Token::Eod] as &[Token],
+                Expr::Binary {
+                    op: BinaryOp::Or,
+                    lhs: Box::new(Expr::Binary {
+                        op: BinaryOp::Greater,
+                        lhs: Box::new(Expr::Ident("a".to_string())),
+                        rhs: Box::new(Expr::Number(Number(0))),
+                    }),
+                    rhs: Box::new(Expr::Binary {
+                        op: BinaryOp::And,
+                        lhs: Box::new(Expr::Binary {
+                            op: BinaryOp::LessEqual,
+                            lhs: Box::new(Expr::Ident("a".to_string())),
+                            rhs: Box::new(Expr::Number(Number(0))),
+                        }),
+                        rhs: Box::new(Expr::Unary {
+                            op: UnaryOp::Not,
+                            expr: Box::new(Expr::Ident("b".to_string())),
+                        })
+                    })
+                }
             ))
         );
     }
