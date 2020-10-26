@@ -64,18 +64,12 @@ mod test_op {
     use super::*;
     #[test]
     fn test_parse() {
-        assert_eq!(
-            BinaryOp::parse(&[Token::Plus]),
-            Ok((&[] as &[Token], BinaryOp::Add))
-        );
+        assert_parses_into!(BinaryOp::parse(&tokenize_to_vec("+")), BinaryOp::Add);
     }
 
-    #[test]
-    fn test_parse_with_remainder() {
-        assert_eq!(
-            BinaryOp::parse(&[Token::Plus, Token::Number(42)]),
-            Ok((&[Token::Number(42)] as &[Token], BinaryOp::Add))
-        );
+    fn test_unary() {
+        assert_parses_into!(UnaryOp::parse(&tokenize_to_vec("-")), UnaryOp::Neg);
+        assert_parses_into!(UnaryOp::parse(&tokenize_to_vec("not")), UnaryOp::Not);
     }
 }
 
@@ -88,7 +82,7 @@ pub(crate) struct LValue {
 impl LValue {
     pub(crate) fn parse(ts: &[Token]) -> Result<(&[Token], Self), String> {
         let (ts, ident) = ident(ts)?;
-        let (ts,indices) = Self::parse_indices(ts)?;
+        let (ts, indices) = Self::parse_indices(ts)?;
         Ok((
             ts,
             Self {
@@ -98,7 +92,7 @@ impl LValue {
         ))
     }
 
-    pub(crate) fn parse_indices(ts:&[Token]) -> Result<(&[Token], Option<Vec<Expr>>), String> {
+    pub(crate) fn parse_indices(ts: &[Token]) -> Result<(&[Token], Option<Vec<Expr>>), String> {
         if let Ok(ts) = expect(Token::LeftBr, ts) {
             let (ts, indices) = sequence_with_sep(|ts| Expr::parse(ts), Token::Comma, ts)?;
             let ts = expect(Token::RightBr, ts)?;
@@ -115,29 +109,23 @@ mod lvalue_tests {
 
     #[test]
     fn test_no_indices() {
-        assert_eq!(
+        assert_parses_into!(
             LValue::parse(&tokenize_to_vec("abc")),
-            Ok((
-                &[Token::Eod] as &[Token],
-                LValue {
-                    ident: "abc".to_string(),
-                    indices: None
-                }
-            ))
+            LValue {
+                ident: "abc".to_string(),
+                indices: None
+            }
         );
     }
 
     #[test]
     fn test_with_indices() {
-        assert_eq!(
+        assert_parses_into!(
             LValue::parse(&tokenize_to_vec("abc[0, 1]")),
-            Ok((
-                &[Token::Eod] as &[Token],
-                LValue {
-                    ident: "abc".to_string(),
-                    indices: Some(vec![Expr::Number(0), Expr::Number(1),])
-                }
-            ))
+            LValue {
+                ident: "abc".to_string(),
+                indices: Some(vec![Expr::Number(0), Expr::Number(1),])
+            }
         );
     }
 }
@@ -247,9 +235,7 @@ impl Expr {
                 ))
             } else {
                 let (ts, indices) = LValue::parse_indices(ts)?;
-                Ok((ts, Expr::LValue(LValue{
-                    ident, indices
-                })))
+                Ok((ts, Expr::LValue(LValue { ident, indices })))
             }
         } else {
             match &ts[0] {
@@ -270,189 +256,156 @@ mod expr_tests {
 
     #[test]
     fn test_parse_number() {
-        assert_eq!(
-            Expr::parse(&tokenize_to_vec("42")),
-            Ok((&[Token::Eod] as &[Token], Expr::Number(42)))
-        );
+        assert_parses_into!(Expr::parse(&tokenize_to_vec("42")), Expr::Number(42));
     }
     #[test]
     fn test_parse_sum_of_two_numbers() {
-        assert_eq!(
+        assert_parses_into!(
             Expr::parse(&tokenize_to_vec("42 + 42")),
-            Ok((
-                &[Token::Eod] as &[Token],
-                Expr::Binary {
-                    op: BinaryOp::Add,
-                    lhs: Box::new(Expr::Number(42)),
-                    rhs: Box::new(Expr::Number(42))
-                }
-            ))
+            Expr::Binary {
+                op: BinaryOp::Add,
+                lhs: Box::new(Expr::Number(42)),
+                rhs: Box::new(Expr::Number(42))
+            }
         );
     }
 
     #[test]
     fn test_parse_product_of_two_numbers() {
-        assert_eq!(
+        assert_parses_into!(
             Expr::parse(&tokenize_to_vec("42 * 42")),
-            Ok((
-                &[Token::Eod] as &[Token],
-                Expr::Binary {
-                    op: BinaryOp::Mul,
-                    lhs: Box::new(Expr::Number(42)),
-                    rhs: Box::new(Expr::Number(42))
-                }
-            ))
+            Expr::Binary {
+                op: BinaryOp::Mul,
+                lhs: Box::new(Expr::Number(42)),
+                rhs: Box::new(Expr::Number(42))
+            }
         );
     }
 
     #[test]
     fn test_parse_priorities() {
-        assert_eq!(
+        assert_parses_into!(
             Expr::parse(&tokenize_to_vec("42 - 42 / 42")),
-            Ok((
-                &[Token::Eod] as &[Token],
-                Expr::Binary {
-                    op: BinaryOp::Sub,
+            Expr::Binary {
+                op: BinaryOp::Sub,
+                lhs: Box::new(Expr::Number(42)),
+                rhs: Box::new(Expr::Binary {
+                    op: BinaryOp::Div,
                     lhs: Box::new(Expr::Number(42)),
-                    rhs: Box::new(Expr::Binary {
-                        op: BinaryOp::Div,
-                        lhs: Box::new(Expr::Number(42)),
-                        rhs: Box::new(Expr::Number(42))
-                    })
-                }
-            ))
+                    rhs: Box::new(Expr::Number(42))
+                })
+            }
         );
     }
 
     #[test]
     fn test_parse_parentheses() {
-        assert_eq!(
+        assert_parses_into!(
             Expr::parse(&tokenize_to_vec("(42 - 42) / 42")),
-            Ok((
-                &[Token::Eod] as &[Token],
-                Expr::Binary {
-                    op: BinaryOp::Div,
-                    lhs: Box::new(Expr::Binary {
-                        op: BinaryOp::Sub,
-                        lhs: Box::new(Expr::Number(42)),
-                        rhs: Box::new(Expr::Number(42))
-                    }),
-                    rhs: Box::new(Expr::Number(42)),
-                }
-            ))
+            Expr::Binary {
+                op: BinaryOp::Div,
+                lhs: Box::new(Expr::Binary {
+                    op: BinaryOp::Sub,
+                    lhs: Box::new(Expr::Number(42)),
+                    rhs: Box::new(Expr::Number(42))
+                }),
+                rhs: Box::new(Expr::Number(42)),
+            }
         );
     }
     #[test]
     fn test_unary() {
-        assert_eq!(
+        assert_parses_into!(
             Expr::parse(&tokenize_to_vec("42 + -42")),
-            Ok((
-                &[Token::Eod] as &[Token],
-                Expr::Binary {
-                    op: BinaryOp::Add,
-                    lhs: Box::new(Expr::Number(42)),
-                    rhs: Box::new(Expr::Unary {
-                        op: UnaryOp::Neg,
-                        expr: Box::new(Expr::Number(42)),
-                    })
-                },
-            ))
+            Expr::Binary {
+                op: BinaryOp::Add,
+                lhs: Box::new(Expr::Number(42)),
+                rhs: Box::new(Expr::Unary {
+                    op: UnaryOp::Neg,
+                    expr: Box::new(Expr::Number(42)),
+                })
+            }
         );
     }
 
     #[test]
     fn logical_operators() {
-        assert_eq!(
+        assert_parses_into!(
             // Relational operators have the lowest precedence, thus the parentheses
             Expr::parse(&tokenize_to_vec("(a > 0) or (a <= 0) and not b")),
-            Ok((
-                &[Token::Eod] as &[Token],
-                Expr::Binary {
-                    op: BinaryOp::Or,
+            Expr::Binary {
+                op: BinaryOp::Or,
+                lhs: Box::new(Expr::Binary {
+                    op: BinaryOp::Greater,
+                    lhs: Box::new(Expr::LValue(LValue {
+                        ident: "a".to_string(),
+                        indices: None
+                    })),
+                    rhs: Box::new(Expr::Number(0)),
+                }),
+                rhs: Box::new(Expr::Binary {
+                    op: BinaryOp::And,
                     lhs: Box::new(Expr::Binary {
-                        op: BinaryOp::Greater,
+                        op: BinaryOp::LessEqual,
                         lhs: Box::new(Expr::LValue(LValue {
                             ident: "a".to_string(),
                             indices: None
                         })),
                         rhs: Box::new(Expr::Number(0)),
                     }),
-                    rhs: Box::new(Expr::Binary {
-                        op: BinaryOp::And,
-                        lhs: Box::new(Expr::Binary {
-                            op: BinaryOp::LessEqual,
-                            lhs: Box::new(Expr::LValue(LValue {
-                                ident: "a".to_string(),
-                                indices: None
-                            })),
-                            rhs: Box::new(Expr::Number(0)),
-                        }),
-                        rhs: Box::new(Expr::Unary {
-                            op: UnaryOp::Not,
-                            expr: Box::new(Expr::LValue(LValue {
-                                ident: "b".to_string(),
-                                indices: None
-                            })),
-                        })
+                    rhs: Box::new(Expr::Unary {
+                        op: UnaryOp::Not,
+                        expr: Box::new(Expr::LValue(LValue {
+                            ident: "b".to_string(),
+                            indices: None
+                        })),
                     })
-                }
-            ))
+                })
+            }
         );
     }
 
     #[test]
     fn test_identifiers() {
-        assert_eq!(
+        assert_parses_into!(
             Expr::parse(&tokenize_to_vec("abc")),
-            Ok((
-                &[Token::Eod] as &[Token],
-                Expr::LValue(LValue {
-                    ident: "abc".to_string(),
-                    indices: None
-                })
-            ))
+            Expr::LValue(LValue {
+                ident: "abc".to_string(),
+                indices: None
+            })
         );
     }
 
     #[test]
     fn test_call_without_args() {
-        assert_eq!(
+        assert_parses_into!(
             Expr::parse(&tokenize_to_vec("abc()")),
-            Ok((
-                &[Token::Eod] as &[Token],
-                Expr::Call {
-                    fn_name: "abc".to_string(),
-                    args: Vec::new()
-                }
-            ))
+            Expr::Call {
+                fn_name: "abc".to_string(),
+                args: Vec::new()
+            }
         );
     }
 
     #[test]
     fn test_call_with_args() {
-        assert_eq!(
+        assert_parses_into!(
             Expr::parse(&tokenize_to_vec("abc(1,2,3)")),
-            Ok((
-                &[Token::Eod] as &[Token],
-                Expr::Call {
-                    fn_name: "abc".to_string(),
-                    args: vec![Expr::Number(1), Expr::Number(2), Expr::Number(3)]
-                }
-            ))
+            Expr::Call {
+                fn_name: "abc".to_string(),
+                args: vec![Expr::Number(1), Expr::Number(2), Expr::Number(3)]
+            }
         );
     }
 
     #[test]
     fn test_array_access() {
-        assert_eq!(
+        assert_parses_into!(
             Expr::parse(&tokenize_to_vec("abc[1,2,3]")),
-            Ok((
-                &[Token::Eod] as &[Token],
-                Expr::LValue(LValue {
-                    ident: "abc".to_string(),
-                    indices: Some(vec![Expr::Number(1), Expr::Number(2), Expr::Number(3)])
-                })
-            ))
+            Expr::LValue(LValue {
+                ident: "abc".to_string(),
+                indices: Some(vec![Expr::Number(1), Expr::Number(2), Expr::Number(3)])
+            })
         );
     }
 }
