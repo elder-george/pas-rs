@@ -1,5 +1,5 @@
 use crate::parse::{expect, ident, sequence_with_sep};
-use crate::token::{tokenize_to_vec, Token};
+use crate::token::{Token};
 
 #[derive(Debug, PartialEq)]
 pub(crate) enum BinaryOp {
@@ -62,6 +62,8 @@ impl UnaryOp {
 #[cfg(test)]
 mod test_op {
     use super::*;
+    use crate::token::tokenize_to_vec;
+
     #[test]
     fn test_parse() {
         assert_parses_into!(BinaryOp::parse(&tokenize_to_vec("+")), BinaryOp::Add);
@@ -106,6 +108,7 @@ impl LValue {
 #[cfg(test)]
 mod lvalue_tests {
     use super::*;
+    use crate::token::tokenize_to_vec;
 
     #[test]
     fn test_no_indices() {
@@ -253,6 +256,7 @@ impl Expr {
 #[cfg(test)]
 mod expr_tests {
     use super::*;
+    use crate::token::tokenize_to_vec;
 
     #[test]
     fn test_parse_number() {
