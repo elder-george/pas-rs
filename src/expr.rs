@@ -19,7 +19,12 @@ pub(crate) enum BinaryOp {
 
 impl BinaryOp {
     pub(crate) fn parse(ts: &[Token]) -> Result<(&[Token], Self), String> {
-        let op = match ts[0] {
+        let op = Self::from_token(&ts[0])?;
+        Ok((&ts[1..], op))
+    }
+
+    pub(crate) fn from_token(tk: &Token) -> Result<Self, String> {
+        match tk {
             Token::Plus => Ok(Self::Add),
             Token::Minus => Ok(Self::Sub),
             Token::Star => Ok(Self::Mul),
@@ -32,9 +37,8 @@ impl BinaryOp {
             Token::LessEqual => Ok(Self::LessEqual),
             Token::And => Ok(Self::And),
             Token::Or => Ok(Self::Or),
-            _ => Err(format!("expected a binary operator but got {:?}", ts[0])),
-        }?;
-        Ok((&ts[1..], op))
+            _ => Err(format!("expected a binary operator but got {:?}", tk)),
+        }
     }
 }
 
@@ -84,25 +88,24 @@ pub(crate) struct LValue {
 impl LValue {
     pub(crate) fn parse(ts: &[Token]) -> Result<(&[Token], Self), String> {
         let (ts, ident) = ident(ts)?;
-        let mut indices = Vec::new();
-        let mut ts = ts;
-        if let Ok(new_ts) = expect(Token::LeftBr, ts) {
-            let (new_ts, idx) = sequence_with_sep(|ts| Expr::parse(ts), Token::Comma, new_ts)?;
-            let new_ts = expect(Token::RightBr, new_ts)?;
-            indices = idx;
-            ts = new_ts;
-        }
+        let (ts,indices) = Self::parse_indices(ts)?;
         Ok((
             ts,
             Self {
                 ident: ident.clone(),
-                indices: if indices.len() > 0 {
-                    Some(indices)
-                } else {
-                    None
-                },
+                indices,
             },
         ))
+    }
+
+    pub(crate) fn parse_indices(ts:&[Token]) -> Result<(&[Token], Option<Vec<Expr>>), String> {
+        if let Ok(ts) = expect(Token::LeftBr, ts) {
+            let (ts, indices) = sequence_with_sep(|ts| Expr::parse(ts), Token::Comma, ts)?;
+            let ts = expect(Token::RightBr, ts)?;
+            Ok((ts, Some(indices)))
+        } else {
+            Ok((ts, None))
+        }
     }
 }
 
@@ -227,36 +230,30 @@ impl Expr {
                     expr: Box::new(expr),
                 },
             ))
+        } else if let Ok(ts) = expect(Token::LeftPar, ts) {
+            let (ts, expr) = Self::parse(ts)?;
+            let ts = expect(Token::RightPar, ts)?;
+            Ok((ts, expr))
+        } else if let Ok((ts, ident)) = ident(ts) {
+            if let Ok(ts) = expect(Token::LeftPar, ts) {
+                let (ts, args) = Self::parse_args(ts)?;
+                let ts = expect(Token::RightPar, ts)?;
+                Ok((
+                    ts,
+                    Expr::Call {
+                        fn_name: ident,
+                        args,
+                    },
+                ))
+            } else {
+                let (ts, indices) = LValue::parse_indices(ts)?;
+                Ok((ts, Expr::LValue(LValue{
+                    ident, indices
+                })))
+            }
         } else {
             match &ts[0] {
                 Token::Number(num) => Ok((&ts[1..], Self::Number(*num))),
-                Token::LeftPar => {
-                    let ts = expect(Token::LeftPar, ts)?;
-                    let (ts, expr) = Self::parse(ts)?;
-                    let ts = expect(Token::RightPar, ts)?;
-                    Ok((ts, expr))
-                }
-                Token::Ident(s) => {
-                    if let Ok(ts) = expect(Token::LeftPar, &ts[1..]) {
-                        let (ts, args) = Self::parse_args(ts)?;
-                        let ts = expect(Token::RightPar, ts)?;
-                        Ok((
-                            ts,
-                            Expr::Call {
-                                fn_name: s.to_string(),
-                                args,
-                            },
-                        ))
-                    } else {
-                        Ok((
-                            &ts[1..],
-                            Expr::LValue(LValue {
-                                ident: s.to_string(),
-                                indices: None,
-                            }),
-                        ))
-                    }
-                }
                 _ => Err("Unexpected stuff".to_string()),
             }
         }
@@ -439,12 +436,22 @@ mod expr_tests {
                 &[Token::Eod] as &[Token],
                 Expr::Call {
                     fn_name: "abc".to_string(),
-                    args: vec![
-                        Expr::Number(1),
-                        Expr::Number(2),
-                        Expr::Number(3)
-                    ]
+                    args: vec![Expr::Number(1), Expr::Number(2), Expr::Number(3)]
                 }
+            ))
+        );
+    }
+
+    #[test]
+    fn test_array_access() {
+        assert_eq!(
+            Expr::parse(&tokenize_to_vec("abc[1,2,3]")),
+            Ok((
+                &[Token::Eod] as &[Token],
+                Expr::LValue(LValue {
+                    ident: "abc".to_string(),
+                    indices: Some(vec![Expr::Number(1), Expr::Number(2), Expr::Number(3)])
+                })
             ))
         );
     }
