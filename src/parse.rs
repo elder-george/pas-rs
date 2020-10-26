@@ -1,9 +1,6 @@
 use crate::token::Token;
 
-pub(crate) fn expect(
-    tk: Token,
-    tokens: &[Token],
-) -> Result<&[Token], String> {
+pub(crate) fn expect(tk: Token, tokens: &[Token]) -> Result<&[Token], String> {
     if tokens[0] == tk {
         Ok(&tokens[1..])
     } else {
