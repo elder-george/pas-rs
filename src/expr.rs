@@ -68,7 +68,7 @@ mod test_op {
     fn test_parse() {
         assert_parses_into!(BinaryOp::parse(&tokenize_to_vec("+")), BinaryOp::Add);
     }
-
+    #[test]
     fn test_unary() {
         assert_parses_into!(UnaryOp::parse(&tokenize_to_vec("-")), UnaryOp::Neg);
         assert_parses_into!(UnaryOp::parse(&tokenize_to_vec("not")), UnaryOp::Not);
