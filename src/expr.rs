@@ -75,8 +75,8 @@ mod test_op {
 
 #[derive(Debug, PartialEq)]
 pub(crate) struct LValue {
-    ident: String,
-    indices: Option<Vec<Expr>>,
+    pub(crate) ident: String,
+    pub(crate) indices: Option<Vec<Expr>>,
 }
 
 impl LValue {
