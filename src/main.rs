@@ -3,6 +3,7 @@ mod macros;
 
 mod expr;
 mod parse;
+mod types;
 mod stmt;
 mod token;
 

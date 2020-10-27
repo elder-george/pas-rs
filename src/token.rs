@@ -60,6 +60,12 @@ pub(crate) enum Token {
     Comma,
     #[token(";")]
     Semicolon,
+    #[token("array")]
+    Array,
+    #[token("of")]
+    Of,
+    #[token("..")]
+    Ellipsis,
     Eod, // fake node to terminate token stream
     #[error]
     #[regex(r"[ \t\n\f]+", logos::skip)]
