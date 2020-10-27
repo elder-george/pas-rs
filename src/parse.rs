@@ -34,3 +34,11 @@ pub(crate) fn ident(ts: &[Token]) -> Result<(&[Token], String), String> {
         Err(format!("Expected identifier, got {:?}", ts[0]))
     }
 }
+
+pub(crate) fn number(ts: &[Token])  -> Result<(&[Token], i64), String> {
+    if let Token::Number(num) = &ts[0] {
+        Ok((&ts[1..], *num))
+    } else {
+        Err(format!("Expected number, got {:?}", ts[0]))
+    }
+}

@@ -1,4 +1,4 @@
-use crate::parse::{expect, ident, sequence_with_sep};
+use crate::parse::{expect, ident, number, sequence_with_sep};
 use crate::token::{Token};
 
 #[derive(Debug, PartialEq)]
@@ -240,11 +240,11 @@ impl Expr {
                 let (ts, indices) = LValue::parse_indices(ts)?;
                 Ok((ts, Expr::LValue(LValue { ident, indices })))
             }
-        } else {
-            match &ts[0] {
-                Token::Number(num) => Ok((&ts[1..], Self::Number(*num))),
-                _ => Err("Unexpected stuff".to_string()),
-            }
+        } else if let Ok((ts, num)) = number(ts) {
+            Ok((ts, Self::Number(num)))
+        }
+        else {
+            Err(format!("Expected expression but got {:?}", ts[0]))
         }
     }
 
