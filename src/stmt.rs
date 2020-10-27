@@ -13,6 +13,10 @@ pub(crate) enum Stmt {
         on_then: Box<Stmt>,
         on_else: Option<Box<Stmt>>,
     },
+    While {
+        cond: Expr,
+        body: Box<Stmt>,
+    },
     Block {
         stmts: Vec<Stmt>,
     },
@@ -46,12 +50,25 @@ impl Stmt {
             let (ts, stmts) = sequence_with_sep(Stmt::parse, Token::Semicolon, ts)?;
             let ts = expect(Token::End, ts)?;
             Ok((ts, Self::Block { stmts }))
-        } else if let Ok((ts, Expr::Call { fn_name, args })) = Expr::parse(ts) { // this feels like a cheat, TBH
+        } else if let Ok((ts, Expr::Call { fn_name, args })) = Expr::parse(ts) {
+            // this feels like a cheat, TBH
             Ok((ts, Stmt::Call { fn_name, args }))
-        } else if let Ok((ts, lhs)) = LValue::parse(ts) {   // Note that `Assign` should go after `Call`
+        } else if let Ok((ts, lhs)) = LValue::parse(ts) {
+            // Note that `Assign` should go after `Call`
             let ts = expect(Token::Assign, ts)?;
             let (ts, rhs) = Expr::parse(ts)?;
             Ok((ts, Self::Assign { lhs, rhs }))
+        } else if let Ok(ts) = expect(Token::While, ts) {
+            let (ts, cond) = Expr::parse(ts)?;
+            let ts = expect(Token::Do, ts)?;
+            let (ts, body) = Stmt::parse(ts)?;
+            Ok((
+                ts,
+                Self::While {
+                    cond,
+                    body: Box::new(body),
+                },
+            ))
         } else {
             Err(format!("Expected statement but got {:?}", &ts[0]))
         }
@@ -196,7 +213,9 @@ mod stmt_tests {
     #[test]
     fn nested_ifs() {
         assert_parses_into!(
-            Stmt::parse(&tokenize_to_vec("if a then if b then begin end else begin end")),
+            Stmt::parse(&tokenize_to_vec(
+                "if a then if b then begin end else begin end"
+            )),
             Stmt::If {
                 cond: Expr::LValue(LValue {
                     ident: "a".to_string(),
@@ -211,6 +230,23 @@ mod stmt_tests {
                     on_else: Some(Box::new(Stmt::Block { stmts: Vec::new() }))
                 }),
                 on_else: None,
+            }
+        );
+    }
+
+    #[test]
+    fn while_loop() {
+        assert_parses_into!(
+            Stmt::parse(&tokenize_to_vec("while foo do bar()")),
+            Stmt::While {
+                cond: Expr::LValue(LValue {
+                    ident: "foo".to_string(),
+                    indices: None
+                }),
+                body: Box::new(Stmt::Call {
+                    fn_name: "bar".to_string(),
+                    args: Vec::new()
+                })
             }
         );
     }

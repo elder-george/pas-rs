@@ -12,6 +12,10 @@ pub(crate) enum Token {
     Then,
     #[token("else")]
     Else,
+    #[token("while")]
+    While,
+    #[token("do")]
+    Do,
     #[regex("[a-zA-Z][a-zA-Z0-9]*", |lex| lex.slice().to_string())]
     Ident(String),
     #[regex(r"[0-9]+", |lex| lex.slice().parse())]
