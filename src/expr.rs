@@ -96,7 +96,7 @@ impl LValue {
 
     pub(crate) fn parse_indices(ts: &[Token]) -> Result<(&[Token], Option<Vec<Expr>>), String> {
         if let Ok(ts) = expect(Token::LeftBr, ts) {
-            let (ts, indices) = sequence_with_sep(|ts| Expr::parse(ts), Token::Comma, ts)?;
+            let (ts, indices) = sequence_with_sep(Expr::parse, Token::Comma, ts)?;
             let ts = expect(Token::RightBr, ts)?;
             Ok((ts, Some(indices)))
         } else {
@@ -249,7 +249,7 @@ impl Expr {
     }
 
     fn parse_args(ts: &[Token]) -> Result<(&[Token], Vec<Expr>), String> {
-        sequence_with_sep(|ts| Expr::parse(ts), Token::Comma, ts)
+        sequence_with_sep(Expr::parse, Token::Comma, ts)
     }
 }
 
