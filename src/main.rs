@@ -6,5 +6,6 @@ mod parse;
 mod types;
 mod stmt;
 mod token;
+mod subroutine;
 
 fn main() {}
