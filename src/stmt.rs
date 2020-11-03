@@ -28,12 +28,12 @@ pub(crate) enum Stmt {
 
 impl Stmt {
     pub(crate) fn parse(ts: &[Token]) -> Result<(&[Token], Self), String> {
-        if let Ok(ts) = expect(Token::If, ts) {
+        if let Ok(ts) = expect(&Token::If, ts) {
             let (ts, cond) = Expr::parse(ts)?;
-            let ts = expect(Token::Then, ts)?;
+            let ts = expect(&Token::Then, ts)?;
             let (mut ts, on_then) = Stmt::parse(ts)?;
             let mut on_else = None;
-            if let Ok(new_ts) = expect(Token::Else, ts) {
+            if let Ok(new_ts) = expect(&Token::Else, ts) {
                 let (new_ts, stmt) = Stmt::parse(new_ts)?;
                 on_else = Some(stmt);
                 ts = new_ts;
@@ -46,21 +46,21 @@ impl Stmt {
                     on_else: on_else.map(Box::new),
                 },
             ))
-        } else if let Ok(ts) = expect(Token::Begin, ts) {
-            let (ts, stmts) = sequence_with_sep(Stmt::parse, Token::Semicolon, ts)?;
-            let ts = expect(Token::End, ts)?;
+        } else if let Ok(ts) = expect(&Token::Begin, ts) {
+            let (ts, stmts) = sequence_with_sep(Stmt::parse, &Token::Semicolon, ts)?;
+            let ts = expect(&Token::End, ts)?;
             Ok((ts, Self::Block { stmts }))
         } else if let Ok((ts, Expr::Call { fn_name, args })) = Expr::parse(ts) {
             // this feels like a cheat, TBH
             Ok((ts, Stmt::Call { fn_name, args }))
         } else if let Ok((ts, lhs)) = LValue::parse(ts) {
             // Note that `Assign` should go after `Call`
-            let ts = expect(Token::Assign, ts)?;
+            let ts = expect(&Token::Assign, ts)?;
             let (ts, rhs) = Expr::parse(ts)?;
             Ok((ts, Self::Assign { lhs, rhs }))
-        } else if let Ok(ts) = expect(Token::While, ts) {
+        } else if let Ok(ts) = expect(&Token::While, ts) {
             let (ts, cond) = Expr::parse(ts)?;
-            let ts = expect(Token::Do, ts)?;
+            let ts = expect(&Token::Do, ts)?;
             let (ts, body) = Stmt::parse(ts)?;
             Ok((
                 ts,

@@ -95,9 +95,9 @@ impl LValue {
     }
 
     pub(crate) fn parse_indices(ts: &[Token]) -> Result<(&[Token], Option<Vec<Expr>>), String> {
-        if let Ok(ts) = expect(Token::LeftBr, ts) {
-            let (ts, indices) = sequence_with_sep(Expr::parse, Token::Comma, ts)?;
-            let ts = expect(Token::RightBr, ts)?;
+        if let Ok(ts) = expect(&Token::LeftBr, ts) {
+            let (ts, indices) = sequence_with_sep(Expr::parse, &Token::Comma, ts)?;
+            let ts = expect(&Token::RightBr, ts)?;
             Ok((ts, Some(indices)))
         } else {
             Ok((ts, None))
@@ -221,14 +221,14 @@ impl Expr {
                     expr: Box::new(expr),
                 },
             ))
-        } else if let Ok(ts) = expect(Token::LeftPar, ts) {
+        } else if let Ok(ts) = expect(&Token::LeftPar, ts) {
             let (ts, expr) = Self::parse(ts)?;
-            let ts = expect(Token::RightPar, ts)?;
+            let ts = expect(&Token::RightPar, ts)?;
             Ok((ts, expr))
         } else if let Ok((ts, ident)) = ident(ts) {
-            if let Ok(ts) = expect(Token::LeftPar, ts) {
+            if let Ok(ts) = expect(&Token::LeftPar, ts) {
                 let (ts, args) = Self::parse_args(ts)?;
-                let ts = expect(Token::RightPar, ts)?;
+                let ts = expect(&Token::RightPar, ts)?;
                 Ok((
                     ts,
                     Expr::Call {
@@ -249,7 +249,7 @@ impl Expr {
     }
 
     fn parse_args(ts: &[Token]) -> Result<(&[Token], Vec<Expr>), String> {
-        sequence_with_sep(Expr::parse, Token::Comma, ts)
+        sequence_with_sep(Expr::parse, &Token::Comma, ts)
     }
 }
 

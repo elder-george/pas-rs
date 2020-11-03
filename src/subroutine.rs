@@ -9,7 +9,7 @@ pub(crate) struct Var(pub(crate) String, pub(crate) Type);
 impl Var {
     pub(crate) fn parse(ts: &[Token]) -> Result<(&[Token], Self), String> {
         let (ts, ident) = ident(ts)?;
-        let ts = expect(Token::Colon, ts)?;
+        let ts = expect(&Token::Colon, ts)?;
         let (ts, param_type) = Type::parse(ts)?;
         Ok((ts, Var(ident, param_type)))
     }
@@ -34,10 +34,10 @@ enum Subroutine {
 
 impl Subroutine {
     pub(crate) fn parse(ts: &[Token]) -> Result<(&[Token], Self), String> {
-        if let Ok(ts) = expect(Token::Procedure, ts) {
+        if let Ok(ts) = expect(&Token::Procedure, ts) {
             let (ts, name) = ident(ts)?;
             let (ts, params) = Self::parse_param_list(ts)?;
-            let ts = expect(Token::Semicolon, ts)?; // never understood why this is here.
+            let ts = expect(&Token::Semicolon, ts)?; // never understood why this is here.
             let (ts, vars) = Self::parse_vars(ts)?;
             let (ts, body) = Self::parse_body(ts)?;
             Ok((
@@ -49,12 +49,12 @@ impl Subroutine {
                     body,
                 },
             ))
-        } else if let Ok(ts) = expect(Token::Function, ts) {
+        } else if let Ok(ts) = expect(&Token::Function, ts) {
             let (ts, name) = ident(ts)?;
             let (ts, params) = Self::parse_param_list(ts)?;
-            let ts = expect(Token::Colon, ts)?;
+            let ts = expect(&Token::Colon, ts)?;
             let (ts, return_type) = Type::parse(ts)?;
-            let ts = expect(Token::Semicolon, ts)?; // never understood why this is here.
+            let ts = expect(&Token::Semicolon, ts)?; // never understood why this is here.
             let (ts, vars) = Self::parse_vars(ts)?;
             let (ts, body) = Self::parse_body(ts)?;
             Ok((
@@ -73,16 +73,16 @@ impl Subroutine {
     }
 
     fn parse_param_list(ts: &[Token]) -> Result<(&[Token], Vec<Var>), String> {
-        let ts = expect(Token::LeftPar, ts)?;
+        let ts = expect(&Token::LeftPar, ts)?;
         // Actual Pascal parameter definition is more complex, but let's simplify it
-        let (ts, params) = sequence_with_sep(Var::parse, Token::Comma, ts)?;
-        let ts = expect(Token::RightPar, ts)?;
+        let (ts, params) = sequence_with_sep(Var::parse, &Token::Comma, ts)?;
+        let ts = expect(&Token::RightPar, ts)?;
         Ok((ts, params))
     }
 
     fn parse_vars(ts: &[Token]) -> Result<(&[Token], Vec<Var>), String> {
-        if let Ok(ts) = expect(Token::Var, ts) {
-            let (ts, vars) = sequence_with_sep(Var::parse, Token::Semicolon, ts)?;
+        if let Ok(ts) = expect(&Token::Var, ts) {
+            let (ts, vars) = sequence_with_sep(Var::parse, &Token::Semicolon, ts)?;
             Ok((ts, vars))
         } else {
             Ok((ts, Vec::new()))

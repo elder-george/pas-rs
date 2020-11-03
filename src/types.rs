@@ -18,14 +18,14 @@ pub(crate) enum Type {
 
 impl Type {
     pub(crate) fn parse(ts: &[Token]) -> Result<(&[Token], Self), String> {
-        if let Ok(ts) = expect(Token::Array, ts) {
-            let ts = expect(Token::LeftBr, ts)?;
-            let (ts, indices) = sequence_with_sep(Type::parse, Token::Comma, ts)?;
+        if let Ok(ts) = expect(&Token::Array, ts) {
+            let ts = expect(&Token::LeftBr, ts)?;
+            let (ts, indices) = sequence_with_sep(Type::parse, &Token::Comma, ts)?;
             if indices.len() == 0 {
                 return Err("Array must have cardinality >= 0".to_string());
             }
-            let ts = expect(Token::RightBr, ts)?;
-            let ts = expect(Token::Of, ts)?;
+            let ts = expect(&Token::RightBr, ts)?;
+            let ts = expect(&Token::Of, ts)?;
             let (ts, elem_type) = Type::parse(ts)?;
             Ok((
                 ts,
@@ -35,7 +35,7 @@ impl Type {
                 },
             ))
         } else if let Ok((ts, start)) = number(ts) {
-            let ts = expect(Token::Ellipsis, ts)?;
+            let ts = expect(&Token::Ellipsis, ts)?;
             let (ts, end) = number(ts)?;
             Ok((ts, Self::Range { start, end }))
         } else if let Ok((ts, name)) = ident(ts) {
