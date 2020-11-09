@@ -1,0 +1,1 @@
+An exercise of implementing a parser of a subset of Pascal, in Rust.
